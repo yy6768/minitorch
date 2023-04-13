@@ -1,39 +1,21 @@
+"""
+Be sure you have the extra requirements installed.
+
+>>> pip install -r requirements.extra.txt
+"""
+
 import networkx as nx
 
 import minitorch
 
-if hasattr(minitorch, "Scalar"):
-    Scalar = minitorch.Scalar
-else:
-    Scalar = None
 
-
-def build_expression(code):
-    out = eval(
-        code,
-        {
-            "x": minitorch.Scalar(1.0, name="x"),
-            "y": minitorch.Scalar(1.0, name="y"),
-            "z": minitorch.Scalar(1.0, name="z"),
-        },
-    )
-    out.name = "out"
-    return out
-
-
-def build_tensor_expression(code):
-    variables = {
-        "x": minitorch.tensor([[1.0, 2.0, 3.0]], requires_grad=True),
-        "y": minitorch.tensor([[1.0, 2.0, 3.0]], requires_grad=True),
-        "z": minitorch.tensor([[1.0, 2.0, 3.0]], requires_grad=True),
-    }
-    variables["x"].name = "x"
-    variables["y"].name = "y"
-    variables["z"].name = "z"
-
-    out = eval(code, variables)
-    out.name = "out"
-    return out
+## Create an autodiff expression here.
+def expression():
+    x = minitorch.Scalar(1.0, name="x")
+    y = minitorch.Scalar(1.0, name="y")
+    z = (x * x) * y + 10.0 * x
+    z.name = "z"
+    return z
 
 
 class GraphBuilder:
@@ -43,7 +25,7 @@ class GraphBuilder:
         self.intermediates = {}
 
     def get_name(self, x):
-        if not isinstance(x, minitorch.Scalar) and not isinstance(x, minitorch.Tensor):
+        if not isinstance(x, minitorch.Scalar):
             return "constant %s" % (x,)
         elif len(x.name) > 15:
             if x.name in self.intermediates:
@@ -65,7 +47,9 @@ class GraphBuilder:
             (cur,) = queue[0]
             queue = queue[1:]
 
-            if cur.is_constant() or cur.is_leaf():
+            if cur.history is None:
+                continue
+            elif cur.is_leaf():
                 continue
             else:
                 op = "%s (Op %d)" % (cur.history.last_fn.__name__, self.op_id)
@@ -76,9 +60,21 @@ class GraphBuilder:
                     G.add_edge(self.get_name(input), op, f"{i}")
 
                 for input in cur.history.inputs:
-                    if not isinstance(input, minitorch.Scalar) and not isinstance(
-                        input, minitorch.Tensor
-                    ):
+                    if not isinstance(input, minitorch.Scalar):
                         continue
-                    queue.append([input])
+
+                    seen = False
+                    for s in queue:
+                        if s[0] == input:
+                            seen = True
+                    if not seen:
+                        queue.append([input])
         return G
+
+
+def make_graph(y, lr=False):
+    G = GraphBuilder().run(y)
+    if lr:
+        G.graph["graph"] = {"rankdir": "LR"}
+    output_graphviz_svg = nx.nx_pydot.to_pydot(G).create_svg()
+    return output_graphviz_svg

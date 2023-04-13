@@ -25,21 +25,21 @@ class Module:
         self.training = True
 
     def modules(self) -> Sequence[Module]:
-        "Return the direct child modules of this module."
+        """Return the direct child modules of this module."""
         m: Dict[str, Module] = self.__dict__["_modules"]
         return list(m.values())
 
     def train(self) -> None:
-        "Set the mode of this module and all descendent modules to `train`."
+        """Set the mode of this module and all descendent modules to `train`."""
         self.training = True
         for module in self._modules.keys():
             self._modules[module].train()
 
     def eval(self) -> None:
-        "Set the mode of this module and all descendent modules to `eval`."
+        """Set the mode of this module and all descendent modules to `eval`."""
         self.training = False
-        for moudule in self._modules.keys():
-            self._modules[moudule].eval()
+        for module in self._modules.keys():
+            self._modules[module].eval()
 
     def named_parameters(self) -> Sequence[Tuple[str, Parameter]]:
         """
@@ -58,9 +58,8 @@ class Module:
                 parameters.append((new_name, param))
         return parameters
 
-
     def parameters(self) -> Sequence[Parameter]:
-        "Enumerate over all the parameters of this module and its descendents."
+        """Enumerate over all the parameters of this module and its descendents."""
         parameters = []
         for parameter in self._parameters.values():
             parameters.append(parameter)
@@ -149,7 +148,7 @@ class Parameter:
                 self.value.name = self.name
 
     def update(self, x: Any) -> None:
-        "Update the parameter value."
+        """Update the parameter value."""
         self.value = x
         if hasattr(x, "requires_grad_"):
             self.value.requires_grad_(True)
